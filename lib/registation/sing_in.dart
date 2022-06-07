@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../http/custom_http_request.dart';
+import '../pages/bottom_nav.dart';
 import '../welcom.dart';
 import '../widget/widget.dart';
 
@@ -15,31 +17,62 @@ class SignIn extends StatefulWidget {
 }
 
 class _SignInState extends State<SignIn> {
+  SharedPreferences? myprefarence;
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  final formkey = GlobalKey<FormState>();
+  bool _isObscure = true;
+  String? token;
+
+  isLogin() async {
+    myprefarence = await SharedPreferences.getInstance();
+    myprefarence!.getString("token");
+    if (token!.isNotEmpty) {
+      Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => BottumNav()));
+    } else {
+      print("feaild");
+    }
+  }
+
   signinInfo() async {
     var map = Map<String, dynamic>();
+    myprefarence = await SharedPreferences.getInstance();
 
     map["email"] = emailController.text.toString();
     map["password"] = passwordController.text.toString();
 
     var respons = await http.post(
-        Uri.parse("https://apihomechef.antopolis.xyz/api/admin/sign-in"),
-        body: map,
-        headers: CustomHttpRequest.defaultHeader);
+      Uri.parse("https://apihomechef.antopolis.xyz/api/admin/sign-in"),
+      body: map,
+      // headers: CustomHttpRequest.defaultHeader
+    );
 
     print("${respons.body}");
 
     final data = jsonDecode(respons.body);
     if (respons.statusCode == 200) {
+      setState(() {
+        myprefarence!.setString("token", data["access_token"]);
+      });
+      token = myprefarence!.getString("token");
+
+      print(token);
+      Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => BottumNav()));
+
       showInToast("Sign In Successful");
     } else {
       showInToast("Sign In  Faield");
     }
   }
 
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  final formkey = GlobalKey<FormState>();
-  bool _isObscure = true;
+  @override
+  void initState() {
+    // TODO: implement initState
+    isLogin();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -180,12 +213,7 @@ class _SignInState extends State<SignIn> {
                             borderRadius: BorderRadius.circular(32))),
                     onPressed: () {
                       if (formkey.currentState!.validate()) {
-                        signinInfo()
-                            ? Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => Welcome()))
-                            : showInToast("SomeThing is Worng");
+                        signinInfo();
                       }
                     },
                     child: Text(
